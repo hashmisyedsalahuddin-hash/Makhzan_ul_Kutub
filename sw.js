@@ -1,4 +1,4 @@
-const CACHE_NAME = "makhzan-live-v4";
+const CACHE_NAME = "makhzan-live-v5";
 const CORE_ASSETS = [
   "./",
   "./Mishkat.html",
