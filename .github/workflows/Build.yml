@@ -1,0 +1,216 @@
+cat << 'ZIP_ONLY_EOF' > ~/make_makhzan_zip.sh
+#!/usr/bin/env bash
+set -e
+
+DIR="/storage/emulated/0/Makhzan_ul_Kutub"
+mkdir -p "$DIR"
+
+cat << 'TERMUX_SH_EOF' > "$DIR/termux-build.sh"
+#!/usr/bin/env bash
+set -e
+DIR="/storage/emulated/0/Makhzan_ul_Kutub"
+TMP="$HOME/makhzan_zip_tmp"
+rm -rf "$TMP" && mkdir -p "$TMP/www"
+cp "$DIR"/*.html "$DIR"/*.css "$DIR"/*.js "$TMP/www/" 2>/dev/null || true
+[ -d "$DIR/data" ] && cp -r "$DIR/data" "$TMP/www/" 2>/dev/null || true
+rm -f "$DIR/makhzan-project.zip"
+(cd "$TMP" && zip -r "$DIR/makhzan-project.zip" www)
+rm -rf "$TMP"
+ls -lh "$DIR/makhzan-project.zip"
+echo "✅ SUCCESS! /Internal storage/Makhzan_ul_Kutub/makhzan-project.zip tayyar hai!"
+TERMUX_SH_EOF
+chmod +x "$DIR/termux-build.sh"
+
+cat << 'BUILD_YML_EOF' > "$DIR/Build.yml"
+name: Build Makhzan-ul-Kutub APK & Web App
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  pages: write
+  id-token: write
+  contents: write
+
+jobs:
+  check-bundle:
+    runs-on: ubuntu-latest
+    outputs:
+      exists: ${{ steps.check.outputs.exists }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Check makhzan-project.zip
+        id: check
+        run: |
+          if [ -s "makhzan-project.zip" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "✅ makhzan-project.zip found."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "ℹ️ makhzan-project.zip not found."
+          fi
+
+  build-and-deploy:
+    needs: check-bundle
+    if: needs.check-bundle.outputs.exists == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Extract Bundle & Ensure Capacitor Config
+        run: |
+          unzip -o makhzan-project.zip
+
+          if [ ! -f "package.json" ]; then
+            cat << 'PKG_EOF' > package.json
+          {
+            "name": "makhzan-ul-kutub",
+            "version": "1.0.0",
+            "private": true,
+            "dependencies": {
+              "@capacitor/android": "^6.0.0",
+              "@capacitor/core": "^6.0.0"
+            },
+            "devDependencies": {
+              "@capacitor/cli": "^6.0.0"
+            }
+          }
+          PKG_EOF
+          fi
+
+          if [ ! -f "capacitor.config.json" ]; then
+            cat << 'CAP_EOF' > capacitor.config.json
+          {
+            "appId": "org.makhzanulkutub.library",
+            "appName": "Makhzan-ul-Kutub",
+            "webDir": "www"
+          }
+          CAP_EOF
+          fi
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install Capacitor Dependencies
+        run: |
+          npm install
+
+      - name: Prepare Web App, Version Stamp & Service Worker
+        run: |
+          touch www/.nojekyll
+          cat << EOF > www/version.json
+          {"build":"${{ github.run_number }}","sha":"${{ github.sha }}","ts":$(date +%s)}
+          EOF
+
+          cat << 'SW_EOF' > /tmp/gen_sw.js
+          const fs = require("fs");
+          const path = require("path");
+          function walk(dir, base = "") {
+            let out = [];
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+              const rel = base ? base + "/" + entry.name : entry.name;
+              const full = path.join(dir, entry.name);
+              if (entry.isDirectory()) out = out.concat(walk(full, rel));
+              else if (/\.(html|css|js|json|woff2|ttf)$/i.test(entry.name) && entry.name !== "sw.js" && entry.name !== "version.json") {
+                out.push("./" + rel);
+              }
+            }
+            return out;
+          }
+          const allAssets = Array.from(new Set(["./", ...walk("www")]));
+          const buildNum = process.env.BUILD_NUM || "1";
+          const sw = [
+            "const CACHE_NAME = \"makhzan-live-v" + buildNum + "\";",
+            "const CORE_ASSETS = " + JSON.stringify(allAssets, null, 2) + ";",
+            "self.addEventListener(\"install\", (e) => { e.waitUntil(caches.open(CACHE_NAME).then((c) => Promise.all(CORE_ASSETS.map((u) => c.add(u).catch(() => {}))))); self.skipWaiting(); });",
+            "self.addEventListener(\"activate\", (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });",
+            "self.addEventListener(\"fetch\", (e) => { if (e.request.method !== \"GET\") return; const url = new URL(e.request.url); if (url.origin !== self.location.origin) return; if (url.pathname.endsWith(\"version.json\")) { e.respondWith(fetch(e.request, { cache: \"no-store\" })); return; } e.respondWith(fetch(e.request, { cache: \"no-store\" }).then((res) => { if (res && res.status === 200) { const cp = res.clone(); caches.open(CACHE_NAME).then((c) => c.put(e.request, cp)); } return res; }).catch(() => caches.match(e.request, { ignoreSearch: true }))); });"
+          ];
+          fs.writeFileSync("www/sw.js", sw.join("\n") + "\n", "utf8");
+          SW_EOF
+          BUILD_NUM="${{ github.run_number }}" node /tmp/gen_sw.js
+
+          node - "${{ github.run_number }}" << 'HTML_EOF'
+          const fs = require("fs");
+          const path = require("path");
+          const b = process.argv[2] || "1";
+          function walkHtml(d) {
+            for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+              const f = path.join(d, e.name);
+              if (e.isDirectory()) walkHtml(f);
+              else if (e.name.toLowerCase().endsWith(".html")) {
+                let h = fs.readFileSync(f, "utf8");
+                h = h.replace(/<head\b[^>]*>/i, "$&\n  <meta name=\"makhzan-build\" content=\"" + b + "\">");
+                h = h.replace(/(href|src)=["']([^"']*?(?:Style\.css|Script\.js|mishkat-engine\.js))(?:\?[^"']*)?["']/gi, '$1="$2?v=' + b + '"');
+                fs.writeFileSync(f, h, "utf8");
+              }
+            }
+          }
+          walkHtml("www");
+          HTML_EOF
+
+      - name: Connect Android APK to GitHub Pages URL
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          REPO="${{ github.event.repository.name }}"
+          if [ "$(echo "$REPO" | tr '[:upper:]' '[:lower:]')" = "${OWNER}.github.io" ]; then
+            PAGES_URL="https://${OWNER}.github.io/"
+          else
+            PAGES_URL="https://${OWNER}.github.io/${REPO}/"
+          fi
+          node - "$PAGES_URL" << 'CAP_UPD_EOF'
+          const fs = require("fs");
+          const url = process.argv[2];
+          const host = new URL(url).hostname;
+          const cfg = JSON.parse(fs.readFileSync("capacitor.config.json", "utf8"));
+          cfg.server = { url, cleartext: false, errorPath: "index.html", allowNavigation: [host] };
+          fs.writeFileSync("capacitor.config.json", JSON.stringify(cfg, null, 2));
+          CAP_UPD_EOF
+
+      - name: Build Android APK
+        run: |
+          [ -d "android" ] || npx cap add android
+          npx cap sync android
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk "../Makhzan-ul-Kutub.apk"
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./www
+          keep_files: false
+
+      - name: Publish Latest APK to GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete latest --yes --cleanup-tag >/dev/null 2>&1 || true
+          gh api -X DELETE "repos/${{ github.repository }}/git/refs/tags/latest" >/dev/null 2>&1 || true
+          sleep 2
+          gh release create latest "Makhzan-ul-Kutub.apk" --target "${{ github.sha }}" --title "Makhzan-ul-Kutub (Latest APK)" --notes "Build #${{ github.run_number }}" --latest
+BUILD_YML_EOF
+
+bash "$DIR/termux-build.sh"
+unzip -l "$DIR/makhzan-project.zip" | grep -E "Mishkat\.html|mishkat-engine\.js|data/mishkat/index\.json"
+ZIP_ONLY_EOF
+chmod +x ~/make_makhzan_zip.sh
+bash ~/make_makhzan_zip.sh
