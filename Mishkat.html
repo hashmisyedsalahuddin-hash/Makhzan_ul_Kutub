@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ur">
+<head>
+  <meta name="makhzan-build" content="4">
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>مرآۃ المناجیح شرح مشکوٰۃ المصابیح</title>
+    <link href="./Style.css?v=4" rel="stylesheet"/>
+</head>
+<body class="mishkat-page">
+<div class="continuous-frame" id="top">
+    <div class="continuous-inner">
+        <section id="mishkatIndexView" class="mishkat-view active">
+            <div class="mishkat-top-banner">
+                <h1 class="mishkat-main-title">مِشْكٰوةُ الْمَصَابِيْح</h1>
+                <div class="mishkat-main-sub">مرآۃ المناجیح — مفتی احمد یار خان نعیمی رحمۃ اللہ علیہ</div>
+            </div>
+
+            <div class="mishkat-mode-switch" role="tablist" aria-label="View Mode">
+                <button type="button" id="mkTabMazameen" class="mishkat-switch-btn active" data-mode="mazameen">
+                    <span class="mk-sw-icon" id="mkIconMazameen"></span>
+                    <span>مضامین</span>
+                </button>
+                <button type="button" id="mkTabJild" class="mishkat-switch-btn" data-mode="jild">
+                    <span class="mk-sw-icon" id="mkIconJild"></span>
+                    <span>جلد</span>
+                </button>
+            </div>
+
+            <button type="button" id="mkMuqaddimaBtn" class="mishkat-muqaddima-banner">
+                <span class="mk-muq-icon" id="mkIconMuqaddima"></span>
+                <span class="mk-muq-text">
+                    <span class="mk-muq-title">مرآۃ المناجیح شرح مشکوٰۃ المصابیح</span>
+                    <span class="mk-muq-sub">مقدمہ</span>
+                </span>
+                <span class="mk-arrow-circle" id="mkArrowMuqaddima"></span>
+            </button>
+
+            <div id="mkListContainer" class="mishkat-list-container">
+                <div class="mishkat-loading">مرآۃ المناجیح لوڈ ہو رہی ہے...</div>
+            </div>
+        </section>
+
+        <section id="mishkatReaderView" class="mishkat-view">
+            <div class="mishkat-reader-bar">
+                <button type="button" id="mkBackToIndexBtn" class="mishkat-back-btn">
+                    <span id="mkBackIcon"></span>
+                    <span>فہرست</span>
+                </button>
+                <div class="mishkat-reader-headings">
+                    <div id="mkReaderKitabTitle" class="mishkat-reader-kitab"></div>
+                    <div id="mkReaderBaabTitle" class="mishkat-reader-baab"></div>
+                </div>
+                <button type="button" id="mkToggleAllSharhBtn" class="mishkat-sharh-all-btn">تشریح</button>
+            </div>
+
+            <div id="mkHadithList" class="mishkat-hadith-list"></div>
+
+            <div class="mishkat-pager-bar">
+                <button type="button" id="mkPrevBaabBtn" class="mishkat-pager-btn">پچھلا باب</button>
+                <button type="button" id="mkNextBaabBtn" class="mishkat-pager-btn">اگلا باب</button>
+            </div>
+        </section>
+    </div>
+</div>
+
+<nav id="mishkatBottomBar" class="mishkat-bottom-bar" dir="ltr" aria-label="Mishkat Tools">
+    <button type="button" id="mkBtnFavorite" class="mishkat-bottom-tile">
+        <span class="mk-tile-icon" id="mkTileIcoFav"></span>
+        <span class="mk-tile-label">FAVORITE</span>
+    </button>
+    <button type="button" id="mkBtnSearch" class="mishkat-bottom-tile">
+        <span class="mk-tile-icon" id="mkTileIcoSearch"></span>
+        <span class="mk-tile-label">SEARCH</span>
+    </button>
+    <button type="button" id="mkBtnResume" class="mishkat-bottom-tile">
+        <span class="mk-tile-icon" id="mkTileIcoResume"></span>
+        <span class="mk-tile-label">RESUME</span>
+    </button>
+    <button type="button" id="mkBtnNotes" class="mishkat-bottom-tile">
+        <span class="mk-tile-icon" id="mkTileIcoNotes"></span>
+        <span class="mk-tile-label">NOTES</span>
+    </button>
+</nav>
+
+<div id="mishkatToolModal" class="ux-modal" role="dialog" aria-modal="true">
+    <div class="ux-modal-card mishkat-modal-card">
+        <div class="ux-modal-header">
+            <span id="mkModalTitle" class="ux-modal-header-title">Mirat-ul-Manajih</span>
+            <button type="button" id="mkModalCloseBtn" class="ux-modal-close" aria-label="Close">&times;</button>
+        </div>
+        <div id="mkModalBody" class="ux-modal-body mishkat-modal-body"></div>
+    </div>
+</div>
+
+<script src="./Script.js?v=4" defer></script>
+<script src="./mishkat-engine.js?v=4" defer></script>
+</body>
+</html>
